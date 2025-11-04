@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Header from './components/Header.jsx';
 import FocusTimer from './components/FocusTimer.jsx';
 import Garden from './components/Garden.jsx';
-import SessionHistory from './components/SessionHistory.jsx';
+import GrowingTree from './components/GrowingTree.jsx';
 
 const SESSIONS_KEY = 'pocketree:sessions';
 const GARDEN_KEY = 'pocketree:garden';
@@ -24,6 +24,8 @@ export default function App() {
       return [];
     }
   });
+  const [progress, setProgress] = useState(0);
+  const [liveStatus, setLiveStatus] = useState('idle');
 
   useEffect(() => {
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
@@ -46,7 +48,6 @@ export default function App() {
     setSessions((prev) => [record, ...prev]);
 
     if (status === 'completed') {
-      // Create a new tree in the garden
       const variants = [
         { trunk: '#7c5f3b', leaves: '#34d399' },
         { trunk: '#8b5e34', leaves: '#22c55e' },
@@ -54,7 +55,7 @@ export default function App() {
         { trunk: '#7a5230', leaves: '#10b981' },
       ];
       const pick = variants[Math.floor(Math.random() * variants.length)];
-      const size = Math.min(1.4, 0.8 + duration / (25 * 60) * 0.6); // 25 min ~ base size, capped
+      const size = Math.min(1.4, 0.8 + (duration / (25 * 60)) * 0.6);
       const tree = {
         id,
         size,
@@ -72,8 +73,12 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 pb-16">
         <section className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
-            <FocusTimer onSessionEnd={handleSessionEnd} />
-            <SessionHistory sessions={sessions} />
+            <FocusTimer
+              onSessionEnd={handleSessionEnd}
+              onProgress={(p) => setProgress(p)}
+              onStatusChange={(s) => setLiveStatus(s)}
+            />
+            <GrowingTree progress={progress} status={liveStatus} />
           </div>
           <Garden trees={garden} />
         </section>

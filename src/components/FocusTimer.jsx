@@ -11,14 +11,14 @@ const formatTime = (secs) => {
   return `${m}:${s}`;
 };
 
-export default function FocusTimer({ onSessionEnd }) {
+export default function FocusTimer({ onSessionEnd, onProgress, onStatusChange }) {
   const [minutes, setMinutes] = useState(25);
   const [secondsLeft, setSecondsLeft] = useState(minutes * 60);
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | running | paused | withered | completed
   const startRef = useRef(null);
 
-  // keep seconds synced with minutes input when idle
+  // keep seconds synced with minutes input when idle/paused
   useEffect(() => {
     if (!running && (status === 'idle' || status === 'paused')) {
       setSecondsLeft(Math.max(1, Math.floor(minutes * 60)));
@@ -41,6 +41,13 @@ export default function FocusTimer({ onSessionEnd }) {
     if (running && secondsLeft <= 0) {
       setRunning(false);
       setStatus('completed');
+    }
+  }, [running, secondsLeft]);
+
+  // propagate status
+  useEffect(() => {
+    onStatusChange?.(status);
+    if (status === 'completed') {
       const now = new Date().toISOString();
       onSessionEnd?.({
         status: 'completed',
@@ -49,7 +56,7 @@ export default function FocusTimer({ onSessionEnd }) {
         endedAt: now,
       });
     }
-  }, [running, secondsLeft, onSessionEnd, minutes]);
+  }, [status]);
 
   // visibility change -> wither
   useEffect(() => {
@@ -76,6 +83,11 @@ export default function FocusTimer({ onSessionEnd }) {
     return Math.min(1, Math.max(0, passed / total));
   }, [secondsLeft, minutes]);
 
+  // propagate progress to parent
+  useEffect(() => {
+    onProgress?.(progress);
+  }, [progress, onProgress]);
+
   const circumference = 276.46; // 2 * Math.PI * r for r=44
   const dash = circumference;
   const offset = dash - dash * progress;
@@ -99,14 +111,12 @@ export default function FocusTimer({ onSessionEnd }) {
     setSecondsLeft(Math.max(1, Math.floor(minutes * 60)));
   };
 
-  const sproutScale = 0.9 + progress * 0.5;
-
   return (
     <div className="rounded-2xl bg-white/70 shadow-sm ring-1 ring-emerald-900/5 p-5">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-emerald-900">Focus Session</h2>
-          <p className="text-sm text-emerald-700">Stay in the app until the timer completes to grow your tree.</p>
+          <h2 className="text-lg font-semibold text-emerald-900">Focus Timer</h2>
+          <p className="text-sm text-emerald-700">Keep this tab active until the timer completes.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -123,7 +133,7 @@ export default function FocusTimer({ onSessionEnd }) {
       </div>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-[auto,1fr]">
-        <div className="mx-auto w-[140px] h-[140px] relative">
+        <div className="mx-auto w-[140px] h-[140px]">
           <svg viewBox="0 0 100 100" className="w-full h-full">
             <circle cx="50" cy="50" r="44" stroke="#dcfce7" strokeWidth="8" fill="none" />
             <circle
@@ -143,13 +153,6 @@ export default function FocusTimer({ onSessionEnd }) {
               {formatTime(secondsLeft)}
             </text>
           </svg>
-
-          <div
-            className="absolute inset-0 grid place-items-center"
-            style={{ transform: `scale(${sproutScale})`, transition: 'transform 0.6s ease-out' }}
-          >
-            <SproutPlant progress={progress} />
-          </div>
         </div>
 
         <div className="flex flex-col justify-center gap-4">
@@ -179,7 +182,7 @@ export default function FocusTimer({ onSessionEnd }) {
 
             {status === 'withered' && (
               <span className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-1 text-sm text-red-700 ring-1 ring-red-200">
-                <EyeOff className="h-4 w-4" /> You left the app — tree withered
+                <EyeOff className="h-4 w-4" /> You left the app — session withered
               </span>
             )}
             {status === 'completed' && (
@@ -190,26 +193,10 @@ export default function FocusTimer({ onSessionEnd }) {
           </div>
 
           <p className="text-sm text-emerald-800/90">
-            Tip: Keep this tab in focus. Switching away during a running session will wither your tree.
+            Tip: Switching tabs while running will wither the session.
           </p>
         </div>
       </div>
     </div>
-  );
-}
-
-function SproutPlant({ progress }) {
-  // Simple SVG plant that grows leaves as progress increases
-  const leafOpacity = Math.min(1, progress * 1.2);
-  const leafScale = 0.8 + progress * 0.6;
-  return (
-    <svg viewBox="0 0 120 120" className="w-20 h-20">
-      <g transform="translate(60,90)">
-        <rect x="-3" y="-30" width="6" height="30" rx="2" fill="#7c5f3b" />
-        <path d="M0 -30 C -6 -42, -22 -40, -28 -26 C -16 -24, -6 -22, 0 -30" fill="#34d399" opacity={leafOpacity} transform={`scale(${leafScale})`} />
-        <path d="M0 -24 C 6 -36, 22 -34, 28 -20 C 16 -18, 6 -16, 0 -24" fill="#10b981" opacity={leafOpacity} transform={`scale(${leafScale})`} />
-      </g>
-      <ellipse cx="60" cy="98" rx="26" ry="6" fill="#000" opacity="0.06" />
-    </svg>
   );
 }
